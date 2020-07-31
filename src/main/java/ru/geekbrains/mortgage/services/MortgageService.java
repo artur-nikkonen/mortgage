@@ -15,12 +15,12 @@ public class MortgageService {
 
     private final MortgageApplicationRepository repository;
     private final PoliceService policeService;
+    private final NalogService nalogService;
 
-    public MortgageService(
-        MortgageApplicationRepository repository,
-        PoliceService policeService) {
+    public MortgageService(MortgageApplicationRepository repository, PoliceService policeService, NalogService nalogService) {
         this.repository = repository;
         this.policeService = policeService;
+        this.nalogService = nalogService;
     }
 
     public MortgageList getAllMortgages() {
@@ -29,32 +29,44 @@ public class MortgageService {
 
     public MortgageList getAllSuccessfulMortgages() {
         List<MortgageApplication> allSuccessful =
-            repository.getAllByStatusEquals(ResolutionStatus.SUCCESSFUL);
+                repository.getAllByStatusEquals(ResolutionStatus.SUCCESSFUL);
 
         return new MortgageList(allSuccessful);
     }
 
     public MortgageResponse registerApplication(MortgageRequest request) {
-        MortgageApplication application = new MortgageApplication();
-        application.setName(request.getName());
-        application.setStatus(ResolutionStatus.SUCCESSFUL);
+        MortgageApplication application = fillApplication(request);
 
         application = repository.save(application);
+
+        return getMortgageResponse(request, application);
+    }
+
+    private MortgageResponse getMortgageResponse(MortgageRequest request, MortgageApplication application) {
         MortgageResponse response = new MortgageResponse();
         response.setId(application.getId());
         response.setRequest(request);
-        response.setResolution("OK");
+
+        if (application.getStatus() == ResolutionStatus.SUCCESSFUL) {
+            response.setResolution("Approved");
+        } else {
+            response.setResolution("Not Approved");
+        }
+
         return response;
     }
+
+    private MortgageApplication fillApplication(MortgageRequest request) {
+        MortgageApplication application = new MortgageApplication();
+        application.setName(request.getName());
+
+        if (policeService.isTerrorist(request)) {
+            application.setStatus(ResolutionStatus.TERRORIST);
+        } else if (nalogService.isLowBudget(request)) {
+            application.setStatus(ResolutionStatus.LOW_BUDGET);
+        } else {
+            application.setStatus(ResolutionStatus.SUCCESSFUL);
+        }
+        return application;
+    }
 }
-
-
-
-
-/*
-    @Service
-    @Repository
-    @Controller
-
-    @Component
- */

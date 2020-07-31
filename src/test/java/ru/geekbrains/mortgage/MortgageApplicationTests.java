@@ -1,43 +1,51 @@
 package ru.geekbrains.mortgage;
 
-import org.assertj.core.api.Assertions;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import ru.geekbrains.mortgage.controller.MortgageController;
 import ru.geekbrains.mortgage.entity.MortgageApplication;
 import ru.geekbrains.mortgage.entity.ResolutionStatus;
+import ru.geekbrains.mortgage.model.MortgageRequest;
 import ru.geekbrains.mortgage.repository.MortgageApplicationRepository;
 
-import java.util.Arrays;
 import java.util.List;
+
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.closeTo;
 
 @SpringBootTest
 class MortgageApplicationTests {
 
-	@Autowired
-	private MortgageApplicationRepository repository;
+    @Autowired
+    private MortgageApplicationRepository repository;
+    @Autowired
+    private MortgageController controller;
 
-	@BeforeEach
-	public void setUp() {
-		repository.deleteAll();
+    @BeforeEach
+    public void setUp() {
+        repository.deleteAll();
+    }
 
-		List<MortgageApplication> applicationList = Arrays.asList(
-			new MortgageApplication("Ivanov Ivan", ResolutionStatus.TERRORIST),
-			new MortgageApplication("Ivanov Vladislav", ResolutionStatus.SUCCESSFUL),
-			new MortgageApplication("Rybkin Ivan", ResolutionStatus.SUCCESSFUL),
-			new MortgageApplication("Ivanova Olga", ResolutionStatus.SUCCESSFUL),
-			new MortgageApplication("Ivanova Elena", ResolutionStatus.SUCCESSFUL)
-		);
+    @Test
+    void applicationStatusTest() {
 
-		repository.saveAll(applicationList);
-	}
+        for (int i = 0; i < 100; i++) {
+            MortgageRequest mortgageRequest = new MortgageRequest();
+            mortgageRequest.setName("Client " + i);
+            controller.registerApplication(mortgageRequest);
+        }
 
-	@Test
-	void contextLoads() {
-		List<MortgageApplication> al = repository.getAllByStatusEquals(ResolutionStatus.TERRORIST);
-		Assertions.assertThat(al.size() == 1);
-	}
+        List<MortgageApplication> terrorists = repository.getAllByStatusEquals(ResolutionStatus.TERRORIST);
+        List<MortgageApplication> lowBudgets = repository.getAllByStatusEquals(ResolutionStatus.LOW_BUDGET);
+        List<MortgageApplication> successful = repository.getAllByStatusEquals(ResolutionStatus.SUCCESSFUL);
 
+        int total = terrorists.size() + lowBudgets.size() + successful.size();
+        double terroristsPercent = (double) terrorists.size() / total;
+        double lowBudgetPercent = (double) lowBudgets.size() / (total - terrorists.size());
+
+        assertThat(terroristsPercent, closeTo(0.1, 0.02));
+        assertThat(lowBudgetPercent, closeTo(0.5, 0.1));
+    }
 }
